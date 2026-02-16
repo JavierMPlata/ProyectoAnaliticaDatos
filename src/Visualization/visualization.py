@@ -2,45 +2,81 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-import sqlite3
 import os
 from pathlib import Path
+from datetime import datetime
+import warnings
+warnings.filterwarnings('ignore')
 
-class NBADataVisualizer:
+class SiniestrosViales:
     """
-    Clase para crear visualizaciones de los datos de NBA limpios usando seaborn.
+    Clase para crear visualizaciones analíticas de datos de siniestros viales.
     """
     
-    def __init__(self, db_path='app/Extract/Files/etl_data.db', charts_dir='app/Visualization/Charts'):
+    def __init__(self, data_dir='src/Extract/Files/cleaned', charts_dir='src/Visualization/Charts'):
         """
         Inicializa el visualizador.
         
         Args:
-            db_path (str): Ruta a la base de datos SQLite
+            data_dir (str): Directorio con los archivos CSV limpios
             charts_dir (str): Directorio donde guardar las gráficas
         """
-        self.db_path = db_path
+        self.data_dir = data_dir
         self.charts_dir = charts_dir
-        self.data = None
+        self.siniestros = None
+        self.vehiculos = None
+        self.actores = None
+        self.hipotesis = None
+        self.diccionario = None
         
         # Crear directorio de gráficas si no existe
         Path(self.charts_dir).mkdir(parents=True, exist_ok=True)
         
-        # Configurar estilo de seaborn
-        sns.set_style("whitegrid")
-        plt.style.use('seaborn-v0_8')
+        # Configurar estilo
+        plt.style.use('default')
+        sns.set_palette("husl")
+        sns.set_context("notebook", font_scale=1.1)
         
     def load_data(self):
-        """Carga los datos desde la base de datos SQLite."""
+        """Carga todos los archivos CSV necesarios."""
         try:
-            conn = sqlite3.connect(self.db_path)
-            self.data = pd.read_sql('SELECT * FROM all_seasons_clean', conn)
-            conn.close()
-            print(f"Datos cargados exitosamente: {len(self.data)} registros")
+            print("📊 Cargando datos...")
+            self.siniestros = pd.read_csv(f'{self.data_dir}/SINIESTROS_cleaned.csv')
+            self.vehiculos = pd.read_csv(f'{self.data_dir}/VEHICULOS_cleaned.csv')
+            self.actores = pd.read_csv(f'{self.data_dir}/ACTOR_VIAL_cleaned.csv')
+            self.hipotesis = pd.read_csv(f'{self.data_dir}/HIPOTESIS_cleaned.csv')
+            self.diccionario = pd.read_csv(f'{self.data_dir}/DICCIONARIO_cleaned.csv')
+            
+            # Convertir fecha a datetime
+            self.siniestros['FECHA'] = pd.to_datetime(self.siniestros['FECHA'], format='%d/%m/%Y', errors='coerce')
+            self.actores['FECHA'] = pd.to_datetime(self.actores['FECHA'], format='%d/%m/%Y', errors='coerce')
+            
+            # Extraer componentes de fecha
+            self.siniestros['AÑO'] = self.siniestros['FECHA'].dt.year
+            self.siniestros['MES'] = self.siniestros['FECHA'].dt.month
+            self.siniestros['DIA_SEMANA'] = self.siniestros['FECHA'].dt.dayofweek
+            
+            # Extraer hora del día
+            if 'HORA' in self.siniestros.columns:
+                self.siniestros['HORA_NUM'] = pd.to_datetime(self.siniestros['HORA'], format='%H:%M:%S', errors='coerce').dt.hour
+            
+            print(f"✅ Datos cargados: {len(self.siniestros)} siniestros, {len(self.actores)} actores viales")
             return True
         except Exception as e:
-            print(f"Error al cargar datos: {e}")
+            print(f"❌ Error al cargar datos: {e}")
             return False
+    
+    def get_descripcion(self, hoja, campo, codigo):
+        """Obtiene la descripción de un código del diccionario."""
+        try:
+            desc = self.diccionario[
+                (self.diccionario['HOJA'] == hoja) & 
+                (self.diccionario['CAMPO'] == campo) & 
+                (self.diccionario['CODIGO'] == int(codigo))
+            ]['DESCRIPCION'].values
+            return desc[0] if len(desc) > 0 else f'Código {codigo}'
+        except:
+            return f'Código {codigo}'
     
     def prepare_season_data(self):
         """Prepara los datos agregados por temporada."""

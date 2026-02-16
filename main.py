@@ -108,7 +108,7 @@ def clean_all_files(files_directory: str, output_dir: str = None, file_pattern: 
 
 def main():
 	"""
-	Función principal para ejecutar la limpieza de datos.
+	Función principal para ejecutar la limpieza de datos y generar visualizaciones.
 	"""
 	# Configuración
 	files_directory = 'src/Extract/Files'
@@ -126,6 +126,25 @@ def main():
 	#     file_path='src/Extract/Files/SINIESTROS.xlsx',
 	#     output_dir='src/Extract/Files/cleaned'
 	# )
+	
+	# Generar visualizaciones analíticas
+	print("\n" + "="*80)
+	print("🎨 INICIANDO GENERACIÓN DE VISUALIZACIONES ANALÍTICAS")
+	print("="*80)
+	
+	# Importar aquí para evitar problemas de caché
+	import importlib
+	import sys
+	# Limpiar caché si existe
+	if 'src.Visualization.visualization_new' in sys.modules:
+		importlib.reload(sys.modules['src.Visualization.visualization_new'])
+	
+	from src.Visualization.visualization_new import SiniestrosVialesAnalyzer
+	analyzer = SiniestrosVialesAnalyzer(
+		data_dir=output_directory,
+		charts_dir='src/Visualization/Charts'
+	)
+	analyzer.generar_todas_graficas()
 
 if __name__ == "__main__":
 	main()
