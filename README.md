@@ -100,7 +100,56 @@ print(summary)
 
 ## 🧹 Características de Limpieza
 
-- **Manejo de valores nulos**: Relleno con mediana (numéricos) y moda (texto)
+### Estrategias Disponibles
+
+El sistema ahora ofrece **múltiples estrategias** para manejar valores nulos:
+
+#### 1. **Eliminar Filas con Nulos** (Por defecto) 🆕
+```python
+cleaner.clean_data()  # O usar handle_missing_data(strategy='drop')
+```
+- ✅ Elimina directamente todas las filas con valores nulos
+- ✅ Datos 100% completos y confiables
+- ⚠️ Puede reducir significativamente el dataset
+
+#### 2. **Auto (Inteligente)**
+```python
+cleaner.handle_missing_data(strategy='auto', threshold=0.5)
+```
+- Elimina columnas con >50% de nulos
+- Luego elimina filas con nulos restantes
+- Balancea preservación y calidad de datos
+
+#### 3. **Rellenar con Mediana/Moda**
+```python
+cleaner.handle_missing_data(strategy='fill')
+```
+- Rellena columnas numéricas con la mediana
+- Rellena columnas de texto con la moda
+- Preserva 100% de las filas
+
+#### 4. **Interpolación**
+```python
+cleaner.handle_missing_data(strategy='interpolate')
+```
+- Interpola valores en columnas numéricas
+- Útil para series temporales
+
+### Herramienta de Análisis 🔍
+
+Usa el script de análisis para comparar estrategias:
+
+```bash
+python analyze_strategies.py
+```
+
+Esto te mostrará:
+- Impacto de cada estrategia en tu dataset
+- Porcentaje de datos preservados
+- Recomendaciones personalizadas
+
+### Otras Características
+
 - **Eliminación de duplicados**: Identificación y remoción de registros duplicados
 - **Detección de outliers**: Usando método IQR (Interquartile Range)
 - **Estandarización**: Normalización de formatos y tipos de datos
@@ -108,13 +157,31 @@ print(summary)
 
 ## 📈 Resultados
 
-Todos los datasets alcanzaron **100% de calidad** después de la limpieza:
-- ✅ **0 valores nulos**
-- ✅ **487,613 valores nulos corregidos**
-- ✅ Preservación del 100% de registros
-- ✅ Datos listos para análisis
+## 📈 Resultados
 
-Ver [LIMPIEZA_DATOS.md](LIMPIEZA_DATOS.md) para más detalles.
+El sistema puede alcanzar **100% de calidad** después de la limpieza (dependiendo de la estrategia):
+
+**Con Estrategia "Eliminar Nulos":**
+- ✅ **0 valores nulos**
+- ✅ Datos 100% confiables
+- ⚠️ Varía el % de filas preservadas según el dataset
+
+**Ejemplo - Dataset SINIESTROS:**
+- Estrategia 1 (Eliminar): 6,689 filas (3.41% preservado)
+- Estrategia 2 (Auto): 167,910 filas (85.60% preservado) ✅ **Recomendada**
+- Estrategia 3 (Rellenar): 196,152 filas (100% preservado)
+
+📊 **Recomendación:** Usa `analyze_strategies.py` para elegir la mejor estrategia para tu dataset.
+
+Ver [LIMPIEZA_DATOS.md](LIMPIEZA_DATOS.md) y [ACTUALIZACION_LIMPIEZA.md](ACTUALIZACION_LIMPIEZA.md) para más detalles.
+
+## 🧪 Scripts de Prueba
+
+| Script | Descripción |
+|--------|-------------|
+| `test_cleaning.py` | Prueba con archivos reales (SINIESTROS.xlsx) |
+| `test_remove_nulls.py` | Demuestra eliminación de nulos con datos sintéticos |
+| `analyze_strategies.py` | Compara las 3 estrategias de limpieza |
 
 ## 🛠️ Tecnologías
 
@@ -127,8 +194,10 @@ Ver [LIMPIEZA_DATOS.md](LIMPIEZA_DATOS.md) para más detalles.
 
 ## 📚 Documentación Adicional
 
-- [LIMPIEZA_DATOS.md](LIMPIEZA_DATOS.md) - Documentación completa del proceso de limpieza
-- [LICENSE](LICENSE) - Licencia del proyecto
+- **[LIMPIEZA_DATOS.md](LIMPIEZA_DATOS.md)** - Documentación original del proceso de limpieza
+- **[ACTUALIZACION_LIMPIEZA.md](ACTUALIZACION_LIMPIEZA.md)** - Nueva funcionalidad de eliminación de nulos 🆕
+- **[RECOMENDACIONES_LIMPIEZA.md](RECOMENDACIONES_LIMPIEZA.md)** - Guía de estrategias y cuándo usarlas 🆕
+- **[LICENSE](LICENSE)** - Licencia del proyecto
 
 ## 🤝 Contribuciones
 
@@ -150,5 +219,6 @@ Este proyecto está bajo la licencia especificada en [LICENSE](LICENSE).
 
 ---
 
-**Última actualización:** Febrero 2026  
-**Estado:** ✅ Funcional - Limpieza de datos completada
+**Última actualización:** Febrero 2026 (Feature1 - Limpieza por eliminación de nulos)  
+**Estado:** ✅ Funcional - Múltiples estrategias de limpieza disponibles  
+**Versión:** 2.0

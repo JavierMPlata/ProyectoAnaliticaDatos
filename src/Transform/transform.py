@@ -48,16 +48,24 @@ class DataClean:
 		
 		return self.duplicates_info
 
-	def handle_missing_data(self, strategy='auto', threshold=0.5):
+	def handle_missing_data(self, strategy='drop', threshold=0.5):
 		"""
 		Maneja datos ausentes con diferentes estrategias.
 		Args:
-			strategy (str): 'auto', 'drop', 'fill', 'interpolate'
+			strategy (str): 'drop' (eliminar), 'auto', 'fill', 'interpolate'
 			threshold (float): Umbral para eliminar columnas (% de datos faltantes)
 		Returns:
 			pd.DataFrame: Datos procesados
 		"""
-		if strategy == 'auto':
+		initial_rows = len(self.data)
+		
+		if strategy == 'drop':
+			# Eliminar todas las filas con valores nulos
+			self.data = self.data.dropna()
+			removed_rows = initial_rows - len(self.data)
+			print(f"   ✅ Filas eliminadas por valores nulos: {removed_rows}")
+		
+		elif strategy == 'auto':
 			# Estrategia automática basada en el porcentaje de datos faltantes
 			null_percentages = (self.data.isnull().sum() / len(self.data))
 			
@@ -65,16 +73,26 @@ class DataClean:
 			cols_to_drop = null_percentages[null_percentages > threshold].index
 			if len(cols_to_drop) > 0:
 				self.data = self.data.drop(columns=cols_to_drop)
-				print(f"Columnas eliminadas por exceso de valores nulos: {list(cols_to_drop)}")
+				print(f"   Columnas eliminadas por exceso de valores nulos: {list(cols_to_drop)}")
 			
-			# Aplicar limpieza estándar al resto
-			return self.clean_data()
-		
-		elif strategy == 'drop':
+			# Eliminar filas con valores nulos restantes
 			self.data = self.data.dropna()
+			removed_rows = initial_rows - len(self.data)
+			print(f"   ✅ Filas eliminadas por valores nulos: {removed_rows}")
 		
 		elif strategy == 'fill':
-			return self.clean_data()
+			# Rellenar con mediana/moda (método antiguo)
+			numeric_columns = self.data.select_dtypes(include=[np.number]).columns
+			for col in numeric_columns:
+				if self.data[col].isna().any():
+					self.data[col] = self.data[col].fillna(self.data[col].median())
+			
+			non_numeric_columns = self.data.select_dtypes(exclude=[np.number]).columns
+			for col in non_numeric_columns:
+				if self.data[col].isna().any():
+					mode_val = self.data[col].mode()
+					if len(mode_val) > 0:
+						self.data[col] = self.data[col].fillna(mode_val[0])
 		
 		elif strategy == 'interpolate':
 			numeric_columns = self.data.select_dtypes(include=[np.number]).columns
@@ -275,7 +293,7 @@ class DataClean:
 		# Paso 2: Manejar datos faltantes
 		if handle_missing:
 			print("2. Manejando datos faltantes...")
-			self.handle_missing_data(strategy='auto')
+			self.handle_missing_data(strategy='drop')
 			results['steps_performed'].append('handle_missing_data')
 		
 		# Paso 3: Eliminar valores no deseados
@@ -414,52 +432,46 @@ class DataClean:
 	
 	def clean_data(self):
 		"""
-		Limpia los datos utilizando estrategias basadas en la mediana y moda.
-		Incluye limpieza específica de columnas numéricas del dataset actual.
+		Limpia los datos eliminando filas con valores nulos.
+		Nuevo comportamiento: elimina directamente las filas con datos nulos.
 		Returns:
 			pd.DataFrame: Datos limpios
 		"""
 		print("🧹 Iniciando limpieza completa de datos...")
 		
-		# Paso 1: Limpiar columnas numéricas específicas
-		print("\n📊 Paso 1: Limpieza de columnas numéricas específicas")
-		specific_cleaning = self.clean_specific_numeric_columns()
+		initial_rows = len(self.data)
+		initial_nulls = self.data.isnull().sum().sum()
 		
-		# Paso 2: Limpiar columnas numéricas restantes
-		print("\n🔢 Paso 2: Limpieza de columnas numéricas restantes")
-		numeric_columns = self.data.select_dtypes(include=[np.number]).columns
-		processed_columns = specific_cleaning['columns_processed']
+		print(f"\n📊 Estado inicial:")
+		print(f"   Total de filas: {initial_rows:,}")
+		print(f"   Total de valores nulos: {initial_nulls:,}")
 		
-		remaining_numeric = [col for col in numeric_columns if col not in processed_columns]
+		# Mostrar columnas con valores nulos
+		null_counts = self.data.isnull().sum()
+		cols_with_nulls = null_counts[null_counts > 0]
 		
-		if remaining_numeric:
-			print(f"   Procesando {len(remaining_numeric)} columnas numéricas adicionales...")
-			for col in remaining_numeric:
-				nulls_count = self.data[col].isna().sum()
-				if nulls_count > 0:
-					median_val = self.data[col].median()
-					self.data[col] = self.data[col].fillna(median_val)
-					print(f"   ✅ {col}: {nulls_count} nulos → mediana ({median_val:.2f})")
-		else:
-			print("   ✅ Todas las columnas numéricas ya fueron procesadas")
-
-		# Paso 3: Limpiar columnas de texto
-		print("\n📝 Paso 3: Limpieza de columnas de texto")
-		non_numeric_columns = self.data.select_dtypes(exclude=[np.number]).columns
+		if len(cols_with_nulls) > 0:
+			print(f"\n🔍 Columnas con valores nulos:")
+			for col, count in cols_with_nulls.items():
+				percentage = (count / initial_rows) * 100
+				print(f"   - {col}: {count:,} nulos ({percentage:.2f}%)")
 		
-		if len(non_numeric_columns) > 0:
-			print(f"   Procesando {len(non_numeric_columns)} columnas de texto...")
-			for col in non_numeric_columns:
-				nulls_count = self.data[col].isna().sum()
-				if nulls_count > 0:
-					most_frequent = self.data[col].mode()
-					if len(most_frequent) > 0:
-						mode_val = most_frequent[0]
-						self.data[col] = self.data[col].fillna(mode_val)
-						print(f"   ✅ {col}: {nulls_count} nulos → moda ('{mode_val}')")
-		else:
-			print("   ✅ No hay columnas de texto para procesar")
-
+		# Eliminar filas con valores nulos
+		print(f"\n🗑️  Eliminando filas con valores nulos...")
+		self.data = self.data.dropna()
+		
+		final_rows = len(self.data)
+		removed_rows = initial_rows - final_rows
+		final_nulls = self.data.isnull().sum().sum()
+		
+		print(f"\n✅ Limpieza completada:")
+		print(f"   Filas eliminadas: {removed_rows:,}")
+		print(f"   Filas restantes: {final_rows:,}")
+		print(f"   Valores nulos eliminados: {initial_nulls:,}")
+		print(f"   Valores nulos restantes: {final_nulls:,}")
+		if initial_rows > 0:
+			print(f"   Porcentaje de datos preservados: {(final_rows/initial_rows)*100:.2f}%")
+		
 		print("\n🎯 Limpieza de datos completada exitosamente")
 		return self.data
 	
