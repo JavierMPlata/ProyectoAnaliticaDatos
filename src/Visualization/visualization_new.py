@@ -258,7 +258,7 @@ class SiniestrosVialesAnalyzer:
                       color=colors, alpha=0.8, edgecolor='black')
         
         ax.set_yticks(range(len(localidad_counts)))
-        ax.set_yticklabels([f'Localidad {int(cod)}' for cod in localidad_counts.index])
+        ax.set_yticklabels([self.get_descripcion('SINIESTROS', 'CODIGO_LOCALIDAD', cod) for cod in localidad_counts.index])
         ax.set_xlabel('Número de Siniestros', fontweight='bold')
         ax.set_title('Top 10 Localidades con Más Siniestros', fontweight='bold', fontsize=14)
         ax.grid(axis='x', alpha=0.3)
@@ -325,33 +325,34 @@ class SiniestrosVialesAnalyzer:
         plt.show()
     
     def plot_vehiculos_involucrados(self):
-        """Gráfica 7: Tipos de vehículos involucrados."""
+        """Gráfica 7: Tipos de vehículos involucrados (por clase de vehículo)."""
         print("\n📈 Creando gráfica: Vehículos involucrados...")
         
-        if 'VEHICULO' not in self.vehiculos.columns:
-            print("   ⚠️ No hay datos de vehículos disponible")
+        if 'CLASE' not in self.vehiculos.columns:
+            print("   ⚠️ No hay datos de clase de vehículos disponible")
             return
         
         fig, ax = plt.subplots(figsize=(14, 8))
         
-        vehiculo_counts = self.vehiculos['VEHICULO'].value_counts().head(10)
-        labels_vehiculo = [self.get_descripcion('VEHICULOS', 'VEHICULO', cod) for cod in vehiculo_counts.index]
+        # Usar CLASE (tipo de vehículo) en lugar de VEHICULO (ID único)
+        clase_counts = self.vehiculos['CLASE'].dropna().value_counts().head(10).sort_values(ascending=True)
+        labels_vehiculo = [self.get_descripcion('VEHICULOS', 'CLASE', cod) for cod in clase_counts.index]
         
-        colors = sns.color_palette("tab10", len(vehiculo_counts))
-        bars = ax.barh(range(len(vehiculo_counts)), vehiculo_counts.values,
+        colors = sns.color_palette("tab10", len(clase_counts))
+        bars = ax.barh(range(len(clase_counts)), clase_counts.values,
                       color=colors, alpha=0.8, edgecolor='black')
         
-        ax.set_yticks(range(len(vehiculo_counts)))
+        ax.set_yticks(range(len(clase_counts)))
         ax.set_yticklabels(labels_vehiculo)
         ax.set_xlabel('Número de Vehículos Involucrados', fontweight='bold')
-        ax.set_title('Top 10 Tipos de Vehículos Involucrados en Siniestros', fontweight='bold', fontsize=14)
+        ax.set_title('Tipos de Vehículos Involucrados en Siniestros', fontweight='bold', fontsize=14)
         ax.grid(axis='x', alpha=0.3)
         
-        # Añadir valores
-        for i, v in enumerate(vehiculo_counts.values):
-            ax.text(v + 50, i, f'{v:,}', va='center', fontweight='bold')
+        # Añadir valores al final de cada barra
+        max_val = clase_counts.values.max()
+        for i, v in enumerate(clase_counts.values):
+            ax.text(v + max_val * 0.02, i, f'{v:,}', va='center', fontweight='bold')
         
-        plt.gca().invert_yaxis()
         plt.tight_layout()
         output_path = os.path.join(self.charts_dir, '07_vehiculos_involucrados.png')
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
@@ -423,12 +424,59 @@ class SiniestrosVialesAnalyzer:
         print(f"   ✓ Guardada: {output_path}")
         plt.show()
     
+    def plot_objeto_fijo(self):
+        """Gráfica 11: Distribución de siniestros por tipo de objeto fijo."""
+        print("\n📈 Creando gráfica: Objeto fijo...")
+        
+        if 'OBJETO_FIJO' not in self.siniestros.columns:
+            print("   ⚠️ No hay datos de objeto fijo disponible")
+            return
+        
+        fig, ax = plt.subplots(figsize=(14, 8))
+        
+        # Filtrar solo valores con descripción conocida en el diccionario (códigos 1-11)
+        datos_validos = self.siniestros[
+            self.siniestros['OBJETO_FIJO'].notna() & 
+            self.siniestros['OBJETO_FIJO'].isin(range(1, 12))
+        ].copy()
+        objeto_counts = datos_validos['OBJETO_FIJO'].value_counts().sort_values(ascending=True)
+        
+        # Traducir códigos a descripciones usando el diccionario
+        labels = [self.get_descripcion('SINIESTROS', 'OBJETO_FIJO', cod) for cod in objeto_counts.index]
+        
+        colors = sns.color_palette("Set2", len(objeto_counts))
+        bars = ax.barh(range(len(objeto_counts)), objeto_counts.values,
+                      color=colors, alpha=0.85, edgecolor='black', linewidth=0.5)
+        
+        ax.set_yticks(range(len(objeto_counts)))
+        ax.set_yticklabels(labels, fontsize=11)
+        ax.set_xlabel('Número de Siniestros', fontweight='bold', fontsize=12)
+        ax.set_title('Siniestros por Tipo de Objeto Fijo Involucrado', fontweight='bold', fontsize=14)
+        ax.grid(axis='x', alpha=0.3)
+        
+        # Añadir valores y porcentaje al final de cada barra
+        total = objeto_counts.sum()
+        max_val = objeto_counts.values.max()
+        for i, v in enumerate(objeto_counts.values):
+            pct = v / total * 100
+            ax.text(v + max_val * 0.02, i, f'{v:,}  ({pct:.1f}%)', 
+                   va='center', fontweight='bold', fontsize=10)
+        
+        # Ajustar límite x para que quepan las etiquetas
+        ax.set_xlim(0, max_val * 1.25)
+        
+        plt.tight_layout()
+        output_path = os.path.join(self.charts_dir, '11_objeto_fijo.png')
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        print(f"   ✓ Guardada: {output_path}")
+        plt.show()
+    
     def plot_resumen_dashboard(self):
         """Gráfica 10: Dashboard resumen con múltiples métricas."""
         print("\n📈 Creando gráfica: Dashboard resumen...")
         
         fig = plt.figure(figsize=(18, 10))
-        gs = fig.add_gridspec(3, 3, hspace=0.3, wspace=0.3)
+        gs = fig.add_gridspec(3, 3, hspace=0.35, wspace=0.3)
         
         # 1. Total de siniestros
         ax1 = fig.add_subplot(gs[0, 0])
@@ -460,38 +508,49 @@ class SiniestrosVialesAnalyzer:
         ax3.axis('off')
         ax3.set_facecolor('#fdebd0')
         
-        # 4. Evolución anual pequeña
-        ax4 = fig.add_subplot(gs[1, :2])
+        # 4. Evolución anual (ocupa toda la fila central)
+        ax4 = fig.add_subplot(gs[1, :])
         siniestros_año = self.siniestros.groupby('AÑO').size()
         ax4.plot(siniestros_año.index, siniestros_año.values, marker='o', 
-                linewidth=2, markersize=6, color='#3498db')
+                linewidth=2.5, markersize=8, color='#3498db')
         ax4.fill_between(siniestros_año.index, siniestros_año.values, alpha=0.3, color='#3498db')
-        ax4.set_title('Evolución Anual', fontweight='bold')
+        ax4.set_title('Evolución Anual de Siniestros', fontweight='bold', fontsize=13)
         ax4.grid(True, alpha=0.3)
-        ax4.set_xlabel('Año', fontweight='bold', fontsize=10)
-        ax4.set_ylabel('Siniestros', fontweight='bold', fontsize=10)
+        ax4.set_xlabel('Año', fontweight='bold', fontsize=11)
+        ax4.set_ylabel('Siniestros', fontweight='bold', fontsize=11)
+        # Añadir valores sobre cada punto
+        for x, y in zip(siniestros_año.index, siniestros_año.values):
+            ax4.text(x, y + 20, f'{y:,}', ha='center', va='bottom', fontsize=9, fontweight='bold')
         
-        # 5. Top 5 tipos de accidente
-        ax5 = fig.add_subplot(gs[1, 2])
-        clase_counts = self.siniestros['CLASE'].value_counts().head(5)
-        labels_clase = [self.get_descripcion('SINIESTROS', 'CLASE', cod)[:15] for cod in clase_counts.index]
-        ax5.pie(clase_counts.values, labels=labels_clase, autopct='%1.0f%%', 
-               textprops={'fontsize': 8, 'fontweight': 'bold'})
-        ax5.set_title('Top 5 Tipos', fontweight='bold', fontsize=11)
-        
-        # 6. Distribución horaria compacta
+        # 5. Distribución horaria (ocupa toda la fila inferior)
         if 'HORA_NUM' in self.siniestros.columns:
             ax6 = fig.add_subplot(gs[2, :])
             hora_counts = self.siniestros['HORA_NUM'].value_counts().sort_index()
-            ax6.bar(hora_counts.index, hora_counts.values, color='#9b59b6', alpha=0.7, edgecolor='black')
-            ax6.set_title('Distribución Horaria', fontweight='bold')
-            ax6.set_xlabel('Hora', fontweight='bold', fontsize=10)
-            ax6.set_ylabel('Siniestros', fontweight='bold', fontsize=10)
-            ax6.set_xticks(range(0, 24, 2))
+            
+            colors_hora = ['#2c3e50' if 0 <= h < 6 else 
+                           '#e74c3c' if 6 <= h < 12 else 
+                           '#f39c12' if 12 <= h < 18 else 
+                           '#34495e' for h in hora_counts.index]
+            
+            ax6.bar(hora_counts.index, hora_counts.values, color=colors_hora, alpha=0.8, edgecolor='black')
+            ax6.set_title('Distribución Horaria de Siniestros', fontweight='bold', fontsize=13)
+            ax6.set_xlabel('Hora del Día', fontweight='bold', fontsize=11)
+            ax6.set_ylabel('Siniestros', fontweight='bold', fontsize=11)
+            ax6.set_xticks(range(0, 24))
             ax6.grid(axis='y', alpha=0.3)
+            
+            # Leyenda de franjas horarias
+            from matplotlib.patches import Patch
+            legend_elements = [
+                Patch(facecolor='#2c3e50', label='Madrugada (0-6h)'),
+                Patch(facecolor='#e74c3c', label='Mañana (6-12h)'),
+                Patch(facecolor='#f39c12', label='Tarde (12-18h)'),
+                Patch(facecolor='#34495e', label='Noche (18-24h)')
+            ]
+            ax6.legend(handles=legend_elements, loc='upper right', fontsize=9)
         
         plt.suptitle('DASHBOARD - Análisis de Siniestros Viales', 
-                    fontsize=18, fontweight='bold', y=0.995)
+                    fontsize=18, fontweight='bold', y=1.0)
         
         output_path = os.path.join(self.charts_dir, '10_dashboard_resumen.png')
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
@@ -525,6 +584,7 @@ class SiniestrosVialesAnalyzer:
             self.plot_vehiculos_involucrados()
             self.plot_heatmap_dia_hora()
             self.plot_causas_principales()
+            self.plot_objeto_fijo()
             self.plot_resumen_dashboard()
             
             print("\n" + "="*70)
